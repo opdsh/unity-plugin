@@ -1,3 +1,5 @@
+English | [中文](README.zh.md)
+
 # unity-plugin
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that lets the agent build Unity games by driving the Unity Editor through the official [`unity` CLI](https://docs.unity3d.com/hub/manual/CLI.html): project creation, live-Editor scene commands, in-Editor C# eval, tests, and builds.

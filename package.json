@@ -40,6 +40,7 @@
     }
   },
   "files": [
+    "README.zh.md",
     "lib",
     "assets",
     "cordis.patch.yml"
