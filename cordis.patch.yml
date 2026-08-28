@@ -1,0 +1,6 @@
+# Bundle layer applied when a profile lists @opdsh/unity-plugin. Override this row's
+# config from your profile's cordis.patch.yml (a patch replaces the whole
+# config value, so restate every key you need).
+- insert:
+    - id: unity
+      name: '@opdsh/unity-plugin'

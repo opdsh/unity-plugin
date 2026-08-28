@@ -1,0 +1,49 @@
+/**
+ * The `unity` user-settings namespace: the user-editable subset of the plugin
+ * configuration (timeouts and the output cap). Composition config in
+ * cordis.yml stays authoritative as the `base` layer; the settings document
+ * carries only user overrides, edited from the dsh settings UI card this
+ * package's client half registers under the same namespace.
+ * @module unity-plugin/settings
+ */
+
+import Schema from '@deepseek-ai/schemastery'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { UnityToolsConfig } from './tools.ts'
+
+/** Settings namespace shared by the Host registration and the browser card. */
+export const UNITY_SETTINGS_NAMESPACE: SettingsNamespace = settingsNamespace('unity')
+
+/** The user-editable tunables; every other config field stays cordis.yml-only. */
+export interface UnityTunables {
+  /** Cooperative timeout budget for live-Editor tools, in milliseconds. */
+  commandTimeoutMs: number
+  /** Cooperative timeout budget for `unity_cli`, in milliseconds. */
+  cliTimeoutMs: number
+  /** In-memory cap per collected output stream, in bytes. */
+  outputMaxBytes: number
+}
+
+/** Schemastery schema of the namespace; defaults mirror the plugin Config. */
+export const UnityTunables: Schema<UnityTunables> = Schema.object({
+  commandTimeoutMs: Schema.number().default(120_000).description(
+    'Timeout for live-Editor tools (unity_status, unity_command, unity_eval), in milliseconds.'),
+  cliTimeoutMs: Schema.number().default(600_000).description(
+    'Timeout for unity_cli (installs, tests, and builds run long), in milliseconds.'),
+  outputMaxBytes: Schema.number().default(512_000).description(
+    'In-memory cap per collected CLI output stream, in bytes.'),
+})
+
+/**
+ * The tunable subset of one composed plugin config — the settings `base` layer.
+ * @param config - the deployment's Unity CLI configuration.
+ * @returns the three user-editable fields.
+ */
+export function tunablesOf(config: UnityToolsConfig): UnityTunables {
+  return {
+    commandTimeoutMs: config.commandTimeoutMs,
+    cliTimeoutMs: config.cliTimeoutMs,
+    outputMaxBytes: config.outputMaxBytes,
+  }
+}
