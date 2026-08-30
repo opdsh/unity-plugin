@@ -3,7 +3,7 @@
  * and writes it only on save, mirroring the dsh plugin-card conventions —
  * a field shows its effective value and whether the user layer carries it,
  * an empty draft clears the field back to the composition layer, and a draft
- * that is not a finite number blocks the save instead of being dropped.
+ * that is not a positive finite number blocks the save instead of being dropped.
  * @module unity-plugin/client/controller
  */
 
@@ -35,7 +35,7 @@ export interface UnityFieldState {
   text: string
   /** Whether saving would leave a user-layer entry for this field. */
   overridden: boolean
-  /** Whether the draft is not a finite number, which blocks saving. */
+  /** Whether the draft is not a positive finite number, which blocks saving. */
   invalid: boolean
 }
 
@@ -217,11 +217,14 @@ export class UnityCardController {
 
 /**
  * Parse one draft: null for an empty draft (a clear), undefined for text that
- * is not a finite number (blocks the save), the number otherwise.
+ * is not a positive finite number (blocks the save), the number otherwise.
+ * Zero and negatives are refused here so the card says so inline, matching the
+ * `min(1)` the Host's schema would reject the write with anyway — all three
+ * fields are durations and byte caps that only mean anything above zero.
  */
 function parseDraft(text: string): number | null | undefined {
   const trimmed = text.trim()
   if (trimmed === '') return null
   const parsed = Number(trimmed)
-  return Number.isFinite(parsed) ? parsed : undefined
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
 }

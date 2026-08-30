@@ -31,10 +31,13 @@ export type Config = UnityToolsConfig & UnitySkillsConfig
 export const Config: Schema<Config> = Schema.object({
   unityBin: Schema.string().default('unity'),
   projectPath: Schema.string(),
-  commandTimeoutMs: Schema.number().default(120_000),
-  cliTimeoutMs: Schema.number().default(600_000),
+  // The three tunables the settings card also edits reject non-positive
+  // values here for the same reason they do there: defineTool refuses a
+  // timeout of zero or less, so such a config cannot mount the tools.
+  commandTimeoutMs: Schema.number().min(1).default(120_000),
+  cliTimeoutMs: Schema.number().min(1).default(600_000),
   graceMs: Schema.number().default(5_000),
-  outputMaxBytes: Schema.number().default(512_000),
+  outputMaxBytes: Schema.number().min(1).default(512_000),
   env: Schema.dict(Schema.string()).default({}),
   warmShell: Schema.boolean().default(true),
   shellIdleMs: Schema.number().default(300_000),

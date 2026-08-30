@@ -98,8 +98,20 @@ export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void
   let source: () => UnityTunables = () => tunablesOf(config)
   let dispose: (() => void) | undefined
   const mount = (): void => {
+    const next = source()
+    const rejection = unmountableTunables(next)
+    if (rejection !== undefined) {
+      // Disposing first and throwing on the way back up would unregister all
+      // five tools and never re-register them, leaving the session with no
+      // unity_* tools and no way to recover from the settings card. Nothing
+      // is mounted yet on the first call, so a composition config this broken
+      // still fails the load loudly instead of starting a plugin with no tools.
+      if (dispose === undefined) throw new Error(`unity-plugin: ${rejection}`)
+      ctx.logger.warn(`unity-plugin: ignoring an unusable unity settings change (${rejection}); keeping the previous values`)
+      return
+    }
     dispose?.()
-    dispose = mountUnityTools(ctx, config, source())
+    dispose = mountUnityTools(ctx, config, next)
   }
   ctx.effect(() => () => {
     dispose?.()
@@ -110,6 +122,22 @@ export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void
     setSource: (current) => { source = current },
     onChange: mount,
   })
+}
+
+/**
+ * Check a tunable set against what the tool registry will actually accept:
+ * `defineTool` throws for a `timeoutMs` of zero or less, and a non-positive
+ * output cap collects nothing. The settings schema refuses these at the write,
+ * so this is the backstop for a section that reached the source another way.
+ * @param tunables - the candidate values.
+ * @returns a reason the set cannot be mounted, or undefined when it can.
+ */
+function unmountableTunables(tunables: UnityTunables): string | undefined {
+  for (const field of ['commandTimeoutMs', 'cliTimeoutMs', 'outputMaxBytes'] as const) {
+    const value = tunables[field]
+    if (!Number.isFinite(value) || value <= 0) return `${field} must be a positive number, got ${value}`
+  }
+  return undefined
 }
 
 /**
