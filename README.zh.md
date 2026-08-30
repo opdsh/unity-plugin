@@ -60,10 +60,10 @@ bundle 补丁会以 schema 默认值插入该插件。可在 profile 的 `cordis
       config:
         unityBin: unity
         projectPath: /abs/path/to/MyGame   # 实时编辑器工具的默认目标工程
-        commandTimeoutMs: 120000
-        cliTimeoutMs: 600000
+        commandTimeoutMs: 120000           # 必须大于 0
+        cliTimeoutMs: 600000               # 必须大于 0
         graceMs: 5000
-        outputMaxBytes: 512000
+        outputMaxBytes: 512000             # 必须大于 0
         env: {}                            # 例如 CI 环境的 UNITY_SERVICE_ACCOUNT_ID/SECRET
         warmShell: true                    # 实时编辑器工具复用同一个 `unity shell` 进程
         shellIdleMs: 300000                # 空闲热会话的回收时间
@@ -102,6 +102,7 @@ pnpm dsh web --patch /abs/path/to/dev.cordis.yml
 - 四个实时编辑器工具（`unity_status`、`unity_list_commands`、`unity_command`、`unity_eval`）走一个热 `unity shell --protocol ndjson` 会话（每个工作目录一个长期存活的 CLI 进程；请求为 `{"id","argv"}` 行，响应为 `{"id","exitCode","envelope"}`），把每次调用的延迟从约 600 毫秒的 CLI 启动降到个位数毫秒。同一会话内的请求串行执行；请求进行中发生工具超时或取消会杀死整个会话进程树（共享进程中的单个请求无法被单独取消），下次调用会重新拉起；空闲会话在 `shellIdleMs` 后被释放。设置 `warmShell: false` 可退回到每次调用一个 CLI 进程（例如 CLI 版本不支持 `unity shell` 时）。`unity_cli` 始终按调用启动进程：构建与测试耗时长，需要原始输出流，而不是串行的 REPL 轮次。
 - 每次调用都带 `--non-interactive`，因此需要交互输入的命令会显式失败，而不会挂起 agent。
 - subprocess 服务会从子进程中清除形似凭据的环境变量；CI 的服务账号凭据必须通过 `env` 配置字段显式传入。
+- `commandTimeoutMs`、`cliTimeoutMs`、`outputMaxBytes` 必须大于 0：小于等于 0 的超时不会被工具注册表接受，因此 schema 会直接拒绝该值，而不是让它把工具注销掉。设置卡片会把这类输入标记为非法并阻止保存；已存储的非法值则会让该命名空间保留上一个有效值。
 - 另一种集成方式：该 CLI 自带一个 MCP stdio 服务（`unity mcp`），暴露同样的编辑器命令。把 `@deepseek-ai/dsh-mcp-client` 接到它上面（`command: unity`，`args: [mcp]`）无需写代码即可工作，但会失去 dsh 的渲染卡片、配置校验与精心编写的工具描述。本插件正是为提供这些而存在。
 
 ## 已知限制
