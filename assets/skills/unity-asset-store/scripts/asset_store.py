@@ -92,7 +92,10 @@ def api_get(path: str, token: str) -> Any:
     try:
         proc = subprocess.run(
             [
-                "curl", "-sS", "-o", body_path, "-w", "%{http_code}",
+                # -L: the API answers some paths with a redirect. curl drops the
+                # Authorization header when a redirect crosses to another host,
+                # so following one cannot leak the token.
+                "curl", "-sS", "-L", "-o", body_path, "-w", "%{http_code}",
                 "-H", f"Authorization: Bearer {token}",
                 f"{API_BASE}{path}",
             ],
@@ -181,11 +184,26 @@ def cmd_download(args: argparse.Namespace) -> None:
         os.makedirs(cache_dir, exist_ok=True)
         out_path = os.path.join(cache_dir, f"{safe}.unitypackage")
 
+    def discard_partial() -> None:
+        """Drop a half-written output so a later run cannot find a corrupt package.
+
+        openssl creates -out before it can know the decrypt will fail, and the
+        cache path is derived from the packageId — so leaving the remains
+        behind hands the next download a plausible-looking bad file.
+        """
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+
     with tempfile.NamedTemporaryFile(delete=False) as enc_file:
         enc_path = enc_file.name
     try:
+        # -L: the download URL is a signed handoff to the CDN and answers with
+        # a redirect. Without this curl writes the redirect body and reports
+        # its status, which surfaced as a misleading "CDN returned HTTP 302".
         proc = subprocess.run(
-            ["curl", "-sS", "-o", enc_path, "-w", "%{http_code}", url],
+            ["curl", "-sS", "-L", "-o", enc_path, "-w", "%{http_code}", url],
             capture_output=True, text=True, timeout=1800,
         )
         if proc.returncode != 0:
@@ -201,6 +219,7 @@ def cmd_download(args: argparse.Namespace) -> None:
             capture_output=True, text=True, timeout=300,
         )
         if dec.returncode != 0:
+            discard_partial()
             fail("DECRYPT_ERROR", f"openssl decrypt failed: {dec.stderr.strip()}")
     finally:
         os.unlink(enc_path)
@@ -209,6 +228,7 @@ def cmd_download(args: argparse.Namespace) -> None:
     with open(out_path, "rb") as handle:
         magic = handle.read(2)
     if magic != b"\x1f\x8b":
+        discard_partial()
         fail("DECRYPT_ERROR", "decrypted output is not a gzip .unitypackage (wrong key?)")
     print(json.dumps({
         "packageId": args.package_id,
