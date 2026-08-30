@@ -94,6 +94,14 @@ class UnityShellSession {
       throw new Error('unity shell spawn returned no piped stdio (subprocess provider contract breach)')
     }
     this.stdin = stdin
+    // A 'pipe' disposition hands the raw streams to the caller, so the seam
+    // attaches no 'error' listener of its own — and a stream that emits
+    // 'error' unlistened throws out of the event loop. Both errors mean the
+    // child is gone or dying, which `handle.done` reports authoritatively
+    // below; swallowing them here is the same deferral `pump` makes for a
+    // failed write, and keeps a dying session from taking the host down.
+    stdin.on('error', () => {})
+    stdout.on('error', () => {})
     stdout.setEncoding('utf8')
     stdout.on('data', (chunk: string) => { this.onStdout(chunk) })
     this.handle.done.then(
