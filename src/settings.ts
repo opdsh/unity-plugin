@@ -25,13 +25,18 @@ export interface UnityTunables {
   outputMaxBytes: number
 }
 
-/** Schemastery schema of the namespace; defaults mirror the plugin Config. */
+/**
+ * Schemastery schema of the namespace; defaults mirror the plugin Config.
+ * The minimums are load-bearing rather than cosmetic: `defineTool` rejects a
+ * timeout of zero or less, so a section carrying one cannot be mounted, and
+ * refusing it at the write keeps the namespace's last good value.
+ */
 export const UnityTunables: Schema<UnityTunables> = Schema.object({
-  commandTimeoutMs: Schema.number().default(120_000).description(
+  commandTimeoutMs: Schema.number().min(1).default(120_000).description(
     'Timeout for live-Editor tools (unity_status, unity_command, unity_eval), in milliseconds.'),
-  cliTimeoutMs: Schema.number().default(600_000).description(
+  cliTimeoutMs: Schema.number().min(1).default(600_000).description(
     'Timeout for unity_cli (installs, tests, and builds run long), in milliseconds.'),
-  outputMaxBytes: Schema.number().default(512_000).description(
+  outputMaxBytes: Schema.number().min(1).default(512_000).description(
     'In-memory cap per collected CLI output stream, in bytes.'),
 })
 

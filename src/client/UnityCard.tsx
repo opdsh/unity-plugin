@@ -139,7 +139,7 @@ function FieldRow(props: {
         onChange={(event) => { props.onEdit(event.target.value) }}
       />
       <p className={state.invalid ? `${CN}__hint--invalid` : `${CN}__hint`}>
-        {state.invalid ? 'Enter a number, or leave blank to use the default.' : copy.hint}
+        {state.invalid ? 'Enter a number above zero, or leave blank to use the default.' : copy.hint}
       </p>
     </div>
   )
