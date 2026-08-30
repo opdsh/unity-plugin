@@ -60,10 +60,10 @@ The bundle patch inserts the plugin with schema defaults. Override configuration
       config:
         unityBin: unity
         projectPath: /abs/path/to/MyGame   # default target for live-Editor tools
-        commandTimeoutMs: 120000
-        cliTimeoutMs: 600000
+        commandTimeoutMs: 120000           # must be > 0
+        cliTimeoutMs: 600000               # must be > 0
         graceMs: 5000
-        outputMaxBytes: 512000
+        outputMaxBytes: 512000             # must be > 0
         env: {}                            # e.g. UNITY_SERVICE_ACCOUNT_ID/SECRET for CI
         warmShell: true                    # live-Editor tools reuse one `unity shell` process
         shellIdleMs: 300000                # idle warm session disposal
@@ -102,6 +102,7 @@ pnpm dsh web --patch /abs/path/to/dev.cordis.yml
 - The four live-Editor tools (`unity_status`, `unity_list_commands`, `unity_command`, `unity_eval`) run through a warm `unity shell --protocol ndjson` session (one long-lived CLI process per working directory; `{"id","argv"}` request lines, `{"id","exitCode","envelope"}` responses), cutting per-call latency from ~600 ms of CLI start to single-digit milliseconds. Requests serialize per session; a tool timeout or cancellation mid-request kills the session tree (one request in a shared process cannot be cancelled alone) and the next call respawns it; idle sessions are disposed after `shellIdleMs`. Set `warmShell: false` to fall back to one CLI process per call (e.g. a CLI version without `unity shell`). `unity_cli` always spawns per call: builds and tests run long and want raw streams, not a serialized REPL turn.
 - Every invocation runs with `--non-interactive` so a command needing interactive input fails loud instead of hanging the agent.
 - The subprocess service scrubs credential-shaped environment variables from the child; CI service-account credentials must be passed explicitly via the `env` config field.
+- `commandTimeoutMs`, `cliTimeoutMs` and `outputMaxBytes` must be greater than zero: a timeout of zero or less is not a tool the registry will accept, so the schema refuses the value rather than letting it unregister the tools. The settings card marks such an entry invalid and blocks the save; a stored value that fails leaves the namespace on its last good one.
 - Alternative integration: the CLI ships an MCP stdio server (`unity mcp`) exposing the same Editor commands. Connecting `@deepseek-ai/dsh-mcp-client` to it (`command: unity`, `args: [mcp]`) works with zero code, but forfeits dsh render cards, config validation, and curated tool descriptions. This plugin exists to provide those.
 
 ## Known limitations
