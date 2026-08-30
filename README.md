@@ -21,7 +21,7 @@ When the dsh deployment has skill support (a composed `skills` service; the stan
 
 All mounted skills use the standard `bundled` rank, so a same-named project- or user-level skill overrides them.
 
-When the deployment has user-settings support (a composed `settings` service; the standard profiles do), the plugin also registers the `unity` settings namespace (the user-editable subset: both timeouts and the output cap), and its browser half adds a **Unity CLI** card to the dsh web GUI under Settings → Plugins → Plugin configuration. Values saved there override the composition config per user, mark themselves as overridden, and apply live: the tools and warm shell remount with the new values without a restart. Empty fields inherit the deployment configuration.
+When the deployment has user-settings support (a composed `settings` service; the standard profiles do), the plugin also registers the `unity` settings namespace (the user-editable subset: both timeouts and the output cap), and its browser half adds a **Unity Plugin** card to the dsh web GUI under Settings → Plugins → Plugin configuration. Values saved there override the composition config per user, mark themselves as overridden, and apply live: the tools and warm shell remount with the new values without a restart. Empty fields inherit the deployment configuration.
 
 Live-Editor tools return the CLI's uniform JSON envelope (`{ success, command, data, errors, warnings }`) as structured output, so they compose cleanly with Code Mode.
 
