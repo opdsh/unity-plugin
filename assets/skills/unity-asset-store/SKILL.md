@@ -13,11 +13,13 @@ Run the helper with the absolute path of this skill's directory (provided as the
 python3 <skill_dir>/scripts/asset_store.py <subcommand> ...
 ```
 
+On Windows invoke it as `python` instead of `python3` (the `python3` name there is often only the Microsoft Store stub). The helper needs Python 3.9+ and no third-party packages.
+
 ## Scope and key facts
 
 - **Owned purchases only.** This lists and downloads assets already in the user's *My Assets*. It cannot search or buy the public storefront. To find an asset the user does **not** own, use `web_search`/`web_fetch` over `assetstore.unity.com`; the user buys it in a browser, and then it appears here.
 - **Two different ids.** `search` returns both a `purchaseId` (`id`) and a `packageId`. `info` and `download` are keyed by **`packageId`** — always pass the `packageId`, never the `purchaseId`.
-- **macOS only, for now.** The token is read from the macOS Keychain. On other hosts the helper exits with an auth error.
+- **macOS and Windows.** On macOS the token is read from the Keychain. On Windows it is read from Credential Manager, where the Unity CLI / Hub split a long token across several chunk credentials (`auth-tokens:<id>--chunk--…`) plus a manifest entry; the helper reassembles and verifies them itself. Windows needs no `openssl`: decryption falls back to .NET AES through PowerShell. Linux is not supported yet, and the helper exits with an auth error there.
 
 ## Authentication — stop and ask, do not work around
 
@@ -27,7 +29,9 @@ The helper reads the Unity access token from the OS credential store. If it prin
 
 > Your Unity session has expired (or isn't signed in). Please run `unity auth login` in a terminal, or sign in through the Unity Hub, then tell me to continue.
 
-Signing in through either the Unity CLI or Unity Hub refreshes the token in the Keychain, and the same command will then work. Do not try to obtain a token another way, edit the Keychain, or bypass the check.
+Signing in through either the Unity CLI or Unity Hub refreshes the token in the credential store, and the same command will then work. Do not try to obtain a token another way, edit the Keychain / Credential Manager, or bypass the check.
+
+On Windows the `AUTH_NOT_FOUND` message may say the token "is split into chunks that could not be reassembled". That is what a signed-out account looks like there (the chunk credentials are removed and only the manifest entry lingers); the fix is the same sign-in, not a repair.
 
 ## Workflow
 
