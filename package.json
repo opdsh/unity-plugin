@@ -1,6 +1,6 @@
 {
   "name": "@opdsh/unity-plugin",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "DeepSeek Harness plugin: control the Unity Editor through the unity CLI — project management, live-editor pipeline commands, and C# eval as agent tools.",
   "author": "vibotaku <vibotaku@vbytes.mozmail.com>",
   "repository": {
