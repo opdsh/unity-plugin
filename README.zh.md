@@ -27,6 +27,7 @@
 
 ## 前置条件
 
+- DeepSeek Harness 0.1.2-alpha.5 或更新版本。该版本把设置消费者 API 移到了 `settings` 服务上，并用 `dsh-client-store` 取代了 `dsh-client-runtime`；本插件已跟进，不再支持 0.1.1。
 - 已安装并完成认证的 `unity` CLI（`unity auth status`），且许可证已激活。
 - 用于实时控制的 Unity 6.0+ 编辑器；目标工程需要 `com.unity.pipeline` 包（`unity pipeline install --project-path <p>`；agent 也可自行通过 `unity_cli` 执行）。
 

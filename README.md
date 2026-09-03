@@ -27,6 +27,7 @@ Live-Editor tools return the CLI's uniform JSON envelope (`{ success, command, d
 
 ## Prerequisites
 
+- DeepSeek Harness 0.1.2-alpha.5 or newer. That line moved the settings consumer API onto the `settings` service and replaced `dsh-client-runtime` with `dsh-client-store`; the plugin follows it and no longer loads on 0.1.1.
 - The `unity` CLI installed and authenticated (`unity auth status`), with an activated license.
 - A Unity 6.0+ Editor for live control; the target project needs the `com.unity.pipeline` package (`unity pipeline install --project-path <p>`; the agent can run this itself via `unity_cli`).
 

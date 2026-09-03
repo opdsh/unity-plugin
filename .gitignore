@@ -2,3 +2,4 @@ node_modules/
 lib/
 .draft/
 __pycache__/
+.claude/settings.local.json

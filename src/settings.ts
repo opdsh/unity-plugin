@@ -8,12 +8,14 @@
  */
 
 import Schema from '@deepseek-ai/schemastery'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { UnityToolsConfig } from './tools.ts'
 
-/** Settings namespace shared by the Host registration and the browser card. */
-export const UNITY_SETTINGS_NAMESPACE: SettingsNamespace = settingsNamespace('unity')
+/**
+ * Settings namespace shared by the Host registration and the browser card.
+ * A literal: `SettingsProvider.installSection` validates the identifier shape
+ * at the type level and parses it at the call, so no branded constructor exists.
+ */
+export const UNITY_SETTINGS_NAMESPACE = 'unity' as const
 
 /** The user-editable tunables; every other config field stays cordis.yml-only. */
 export interface UnityTunables {
