@@ -10,7 +10,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
-import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+// Type-only: the ctx.settings Context merge for the optional settings seam.
+import type {} from '@deepseek-ai/dsh-settings'
 import { runUnity, runUnityJson } from './unity-cli.ts'
 import type { UnityJsonResult, UnityRunSpec } from './unity-cli.ts'
 import { UnityShellPool } from './unity-shell.ts'
@@ -118,9 +119,14 @@ export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void
     dispose = undefined
   }, 'unity tools')
   mount()
-  installSettingsSection(ctx, UNITY_SETTINGS_NAMESPACE, UnityTunables, tunablesOf(config), {
-    setSource: (current) => { source = current },
-    onChange: mount,
+  // The settings seam is optional: without a composed provider the tools keep
+  // the composition config; with one, the provider owns attach, fallback on
+  // detach, and change notification for this consumer's namespace.
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, UNITY_SETTINGS_NAMESPACE, UnityTunables, tunablesOf(config), {
+      setSource: (current) => { source = current },
+      onChange: mount,
+    })
   })
 }
 

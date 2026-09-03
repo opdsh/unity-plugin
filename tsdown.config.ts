@@ -2,17 +2,17 @@ import { defineConfig } from 'tsdown'
 
 /**
  * The dsh web GUI's frozen module-table rows a client bundle may require at
- * runtime instead of inlining: the platform baseline (react, cordis, the slot
- * registry, the primitives) plus the preloaded runtime face. Mirrors the
- * harness's packages/client/web/src/platform.ts roster; a specifier outside
- * this set is bundled into client.js.
+ * runtime instead of inlining: the platform baseline (react, cordis, the
+ * snapshot store, the slot registry, the primitives). Mirrors the harness's
+ * packages/client/web/src/platform.ts `PLATFORM_MODULES` roster; a specifier
+ * outside this set is bundled into client.js.
  */
 const CLIENT_EXTERNALS = new Set([
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client',
   '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-client-store',
   '@deepseek-ai/dsh-client-ui-slots',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-runtime/client',
 ])
 
 /**

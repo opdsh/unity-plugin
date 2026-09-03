@@ -8,7 +8,9 @@
  * @module unity-plugin/client
  */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+// Type-only: the ctx.slots Context merge (the renderer provides the registry).
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the ctx.settingsScope Context merge.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: the `settings.plugin.item` SlotMap declaration.

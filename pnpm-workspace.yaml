@@ -1,0 +1,4 @@
+# pnpm 11 holds back packages published less than a day ago by default. The
+# deepseek-harness alpha line this plugin builds against moves faster than
+# that, so the gate is off; the lockfile pins the exact versions anyway.
+minimumReleaseAge: 0

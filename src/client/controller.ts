@@ -7,8 +7,9 @@
  * @module unity-plugin/client/controller
  */
 
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SettingsScope, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** Settings namespace this card edits; the Host half registers the same value. */
 export const UNITY_NS = 'unity'
