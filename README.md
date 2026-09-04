@@ -11,7 +11,7 @@ It talks to the Editor through Unity's official [`unity` command-line tool](http
 - **Start a game from scratch.** "Create a new 3D project called SpaceRunner using the URP template" and the agent picks the template, creates the project, and opens the Editor.
 - **Build scenes by talking.** Add GameObjects, position them, attach components, wire up prefabs. Scene commands round-trip in well under a second with no recompile.
 - **Write gameplay code.** The agent creates C# scripts, waits for the recompile, and attaches them to the right objects. It can also run C# directly inside the Editor for anything that has no dedicated command.
-- **Use assets you already own.** Search your Unity Asset Store purchases ("My Assets"), download them, and import them into the open project.
+- **Put your Asset Store library to work.** The agent can search the assets you own on the Unity Asset Store ("My Assets"), download them, and import them straight into the open project. See [Using your Asset Store assets](#using-your-asset-store-assets).
 - **See and test the result.** Take screenshots of the Scene view, enter and exit Play mode, run EditMode and PlayMode tests.
 - **Ship it.** Kick off player builds for your target platform.
 - **Learn from Unity's own playbooks.** The plugin bundles Unity's official agent skill collection (UI, physics, optimization, multiplayer, package management, and more), so the agent follows Unity best practices instead of guessing.
@@ -82,6 +82,28 @@ Tips:
 - The agent launches the Editor with the `-automated` flag so no dialog boxes block it. If you open the Editor yourself, that's fine too; the agent will find it.
 - The first time a new project opens, Unity imports assets and can take a few minutes. The agent waits for the Editor to report "ready".
 - Ask the agent to take a screenshot whenever you want to see what the scene looks like.
+
+## Using your Asset Store assets
+
+Everything you have bought or claimed on the [Unity Asset Store](https://assetstore.unity.com/) is available to the agent. It signs in with the same Unity account the `unity` CLI and Unity Hub already use, so there is nothing extra to set up.
+
+Ask for an asset by name or by description:
+
+> Add the 2D Game Kit to this project.
+
+> Find a low-poly nature pack in my assets and import it.
+
+The agent then:
+
+1. Searches your "My Assets" library and picks the matching package.
+2. Checks that the package supports your project's Unity version and warns you if it does not.
+3. Downloads the `.unitypackage` from Unity's servers.
+4. Imports it into the open project silently, with no import dialog.
+5. Waits for any recompile to finish and tells you which folder under `Assets/` the files landed in.
+
+Only assets you already own are available this way. To use something new, buy or claim it on the Asset Store in your browser and it appears in your library right away. If your Unity sign-in has expired, the agent will ask you to run `unity auth login` or sign in through the Unity Hub, then continue.
+
+The Asset Store feature works on Windows and macOS and needs Python 3.9 or newer.
 
 ## Configuration
 

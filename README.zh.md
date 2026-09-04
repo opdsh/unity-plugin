@@ -11,7 +11,7 @@
 - **从零开始做一个游戏。** 说一句「用 URP 模板新建一个叫 SpaceRunner 的 3D 工程」，agent 会挑选模板、创建工程并打开编辑器。
 - **动口不动手搭场景。** 添加 GameObject、摆放位置、挂载组件、连接预制体。场景命令在一秒内往返完成，无需重新编译。
 - **编写玩法代码。** agent 会创建 C# 脚本、等待重新编译完成，再把脚本挂到正确的对象上。对于没有专用命令的操作，它还能直接在编辑器内执行 C#。
-- **使用你已拥有的资源。** 搜索你在 Unity Asset Store 购买过的资源（「My Assets」），下载并导入当前打开的工程。
+- **让你的 Asset Store 资源库派上用场。** agent 可以搜索你在 Unity Asset Store 拥有的资源（「My Assets」），下载并直接导入当前打开的工程。详见[使用你的 Asset Store 资源](#使用你的-asset-store-资源)。
 - **看到并测试结果。** 截取 Scene 视图截图、进入和退出 Play 模式、运行 EditMode 和 PlayMode 测试。
 - **发布游戏。** 为目标平台启动玩家构建。
 - **遵循 Unity 官方最佳实践。** 插件内置 Unity 官方的 agent 技能集（UI、物理、性能优化、多人联机、包管理等），agent 按 Unity 的推荐做法工作，而不是靠猜。
@@ -82,6 +82,28 @@ onlyBuiltDependencies:
 - agent 启动编辑器时会带上 `-automated` 参数，避免弹窗阻塞。你自己打开编辑器也没问题，agent 会找到它。
 - 新工程第一次打开时 Unity 需要导入资源，可能耗时几分钟。agent 会等到编辑器报告「ready」再继续。
 - 任何时候想看看场景的样子，让 agent 截一张图即可。
+
+## 使用你的 Asset Store 资源
+
+你在 [Unity Asset Store](https://assetstore.unity.com/) 购买或领取过的所有资源，agent 都可以使用。它使用 `unity` CLI 和 Unity Hub 已经登录的同一个 Unity 账号，无需任何额外设置。
+
+按名称或描述提出需求即可：
+
+> 把 2D Game Kit 加到这个工程里。
+
+> 在我的资源里找一个低多边形自然场景包并导入。
+
+agent 会依次：
+
+1. 搜索你的「My Assets」资源库，选出匹配的包。
+2. 检查该包是否支持你工程的 Unity 版本，不匹配时提醒你。
+3. 从 Unity 服务器下载 `.unitypackage`。
+4. 静默导入当前打开的工程，不弹出导入对话框。
+5. 等待可能触发的重新编译完成，并告诉你文件落在 `Assets/` 下的哪个文件夹。
+
+只有你已经拥有的资源才能这样使用。想用新资源时，在浏览器里于 Asset Store 购买或领取，它会立刻出现在你的资源库中。若 Unity 登录已过期，agent 会请你执行 `unity auth login` 或通过 Unity Hub 登录，然后继续。
+
+Asset Store 功能支持 Windows 和 macOS，需要 Python 3.9 或更新版本。
 
 ## 配置
 
