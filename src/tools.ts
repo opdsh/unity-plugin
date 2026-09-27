@@ -7,15 +7,14 @@
  * @module unity-plugin/tools
  */
 
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
-// Type-only: the ctx.settings Context merge for the optional settings seam.
-import type {} from '@deepseek-ai/dsh-settings'
+// Type-only: the Loader's `loader/volatile-update` event merge.
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import { runUnity, runUnityJson } from './unity-cli.ts'
 import type { UnityJsonResult, UnityRunSpec } from './unity-cli.ts'
 import { UnityShellPool } from './unity-shell.ts'
-import { UNITY_SETTINGS_NAMESPACE, UnityTunables, tunablesOf } from './settings.ts'
 
 /** Deployment configuration consumed by the tool consumers. */
 export interface UnityToolsConfig {
@@ -23,14 +22,14 @@ export interface UnityToolsConfig {
   unityBin: string
   /** Default Unity project path targeted by live-Editor tools; per-call `projectPath` overrides it. */
   projectPath?: string
-  /** Cooperative timeout budget for live-Editor tools, in milliseconds. */
-  commandTimeoutMs: number
-  /** Cooperative timeout budget for `unity_cli` (installs, tests, and builds run long), in milliseconds. */
-  cliTimeoutMs: number
+  /** Cooperative timeout budget for live-Editor tools, in milliseconds; live-editable. */
+  commandTimeoutMs: Volatile<number>
+  /** Cooperative timeout budget for `unity_cli` (installs, tests, and builds run long), in milliseconds; live-editable. */
+  cliTimeoutMs: Volatile<number>
   /** TERM-to-KILL escalation grace for the CLI process tree, in milliseconds. */
   graceMs: number
-  /** In-memory cap per collected output stream, in bytes. */
-  outputMaxBytes: number
+  /** In-memory cap per collected output stream, in bytes; live-editable. */
+  outputMaxBytes: Volatile<number>
   /** Explicit environment entries for the CLI (e.g. `UNITY_SERVICE_ACCOUNT_ID`), merged after the subprocess credential scrub. */
   env: Record<string, string>
   /** Route the live-Editor tools through a warm `unity shell --protocol ndjson` session instead of one CLI process per call. */
@@ -85,65 +84,40 @@ const PROJECT_PATH_PARAMETER = {
   description: 'Absolute path of the Unity project whose Editor to target; omit to use the plugin\'s configured default (or the only running Editor).',
 } as const
 
+/** The live-editable tunables, read once per mount. */
+interface UnityTunables {
+  commandTimeoutMs: number
+  cliTimeoutMs: number
+  outputMaxBytes: number
+}
+
 /**
  * Register the five `unity_*` tools on `ctx.tools`, remounting them whenever
- * the `unity` settings namespace commits a change to the user-editable
- * tunables (timeouts and the output cap). Without a composed settings seam
- * the composition config applies unchanged. A remount also disposes the warm
- * shell pool, so in-flight warm requests reject and sessions respawn with the
- * new caps.
+ * the Loader commits a live edit to the volatile tunables (timeouts and the
+ * output cap), as the settings card on the Plugins page writes them. A
+ * remount also disposes the warm shell pool, so in-flight warm requests
+ * reject and sessions respawn with the new caps. The Config schema refuses
+ * non-positive values, and the Loader keeps the running values when a
+ * candidate fails it, so every mount sees values `defineTool` accepts.
  * @param ctx - registrant context carrying the tool registry and subprocess service.
  * @param config - the deployment's Unity CLI configuration.
  */
 export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void {
-  let source: () => UnityTunables = () => tunablesOf(config)
   let dispose: (() => void) | undefined
   const mount = (): void => {
-    const next = source()
-    const rejection = unmountableTunables(next)
-    if (rejection !== undefined) {
-      // Disposing first and throwing on the way back up would unregister all
-      // five tools and never re-register them, leaving the session with no
-      // unity_* tools and no way to recover from the settings card. Nothing
-      // is mounted yet on the first call, so a composition config this broken
-      // still fails the load loudly instead of starting a plugin with no tools.
-      if (dispose === undefined) throw new Error(`unity-plugin: ${rejection}`)
-      ctx.logger.warn(`unity-plugin: ignoring an unusable unity settings change (${rejection}); keeping the previous values`)
-      return
-    }
     dispose?.()
-    dispose = mountUnityTools(ctx, config, next)
+    dispose = mountUnityTools(ctx, config, {
+      commandTimeoutMs: config.commandTimeoutMs.get(),
+      cliTimeoutMs: config.cliTimeoutMs.get(),
+      outputMaxBytes: config.outputMaxBytes.get(),
+    })
   }
   ctx.effect(() => () => {
     dispose?.()
     dispose = undefined
   }, 'unity tools')
   mount()
-  // The settings seam is optional: without a composed provider the tools keep
-  // the composition config; with one, the provider owns attach, fallback on
-  // detach, and change notification for this consumer's namespace.
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, UNITY_SETTINGS_NAMESPACE, UnityTunables, tunablesOf(config), {
-      setSource: (current) => { source = current },
-      onChange: mount,
-    })
-  })
-}
-
-/**
- * Check a tunable set against what the tool registry will actually accept:
- * `defineTool` throws for a `timeoutMs` of zero or less, and a non-positive
- * output cap collects nothing. The settings schema refuses these at the write,
- * so this is the backstop for a section that reached the source another way.
- * @param tunables - the candidate values.
- * @returns a reason the set cannot be mounted, or undefined when it can.
- */
-function unmountableTunables(tunables: UnityTunables): string | undefined {
-  for (const field of ['commandTimeoutMs', 'cliTimeoutMs', 'outputMaxBytes'] as const) {
-    const value = tunables[field]
-    if (!Number.isFinite(value) || value <= 0) return `${field} must be a positive number, got ${value}`
-  }
-  return undefined
+  ctx.on('loader/volatile-update', mount)
 }
 
 /**

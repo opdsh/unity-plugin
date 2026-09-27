@@ -1,6 +1,6 @@
 {
   "name": "@opdsh/unity-plugin",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "DeepSeek Harness plugin: control the Unity Editor through the unity CLI — project management, live-editor pipeline commands, and C# eval as agent tools.",
   "author": "vibotaku <vibotaku@vbytes.mozmail.com>",
   "repository": {
@@ -35,7 +35,7 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-settings-plugins"
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
       ]
     }
   },
@@ -63,12 +63,12 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.2 || >=4.0.3-0",
-    "@deepseek-ai/dsh-settings": ">=0.1.2-alpha.5 || >=0.2.0-0",
-    "@deepseek-ai/dsh-skill-filesystem": ">=0.1.2-alpha.5 || >=0.2.0-0",
-    "@deepseek-ai/dsh-subprocess": ">=0.1.2-alpha.5 || >=0.2.0-0",
-    "@deepseek-ai/dsh-tools": ">=0.1.2-alpha.5 || >=0.2.0-0",
-    "@deepseek-ai/schemastery": ">=3.18.2 || >=3.18.3-0"
+    "@deepseek-ai/cordis": ">=4.0.4 || >=4.0.5-0",
+    "@deepseek-ai/dsh-settings": ">=0.1.7-rc.2 || >=0.2.0-0",
+    "@deepseek-ai/dsh-skill-filesystem": ">=0.1.7-rc.2 || >=0.2.0-0",
+    "@deepseek-ai/dsh-subprocess": ">=0.1.7-rc.2 || >=0.2.0-0",
+    "@deepseek-ai/dsh-tools": ">=0.1.7-rc.2 || >=0.2.0-0",
+    "@deepseek-ai/schemastery": ">=3.18.4 || >=3.18.5-0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -91,19 +91,20 @@
     }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-store": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-ui-settings": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-client-ui-slots": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-settings": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-skill-filesystem": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-subprocess": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-tools": "0.1.2-alpha.5",
-    "@deepseek-ai/schemastery": "^3.18.2",
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.5",
+    "@deepseek-ai/dsh-api-remotes": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-store": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-skill-filesystem": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-subprocess": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.31",
     "tsdown": "^0.22.14",
