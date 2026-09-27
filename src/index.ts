@@ -9,8 +9,10 @@
  * @module unity-plugin
  */
 
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
+// Type-only: the ctx.settings Context merge for the optional page-policy seam.
+import type {} from '@deepseek-ai/dsh-settings'
 import { registerUnityTools } from './tools.ts'
 import type { UnityToolsConfig } from './tools.ts'
 import { registerUnitySkills } from './skill.ts'
@@ -27,17 +29,25 @@ export const inject = ['tools', 'subprocess']
 /** Deployment configuration for the Unity CLI integration. */
 export type Config = UnityToolsConfig & UnitySkillsConfig
 
+/** The raw configuration the Loader parses: the volatile fields as plain values. */
+export type ConfigInput = {
+  [K in keyof Config]: Config[K] extends Volatile<infer T> ? T : Config[K]
+}
+
 /** Schemastery configuration; defaults suit a local interactive install of the `unity` CLI. */
-export const Config: Schema<Config> = Schema.object({
+export const Config: Schema<ConfigInput, Config> = Schema.object({
   unityBin: Schema.string().default('unity'),
   projectPath: Schema.string(),
-  // The three tunables the settings card also edits reject non-positive
-  // values here for the same reason they do there: defineTool refuses a
-  // timeout of zero or less, so such a config cannot mount the tools.
-  commandTimeoutMs: Schema.number().min(1).default(120_000),
-  cliTimeoutMs: Schema.number().min(1).default(600_000),
+  // The three volatile tunables are what the settings card on the Plugins
+  // page edits live. They reject non-positive values because defineTool
+  // refuses a timeout of zero or less, so such a config cannot mount the tools.
+  commandTimeoutMs: Schema.number().min(1).default(120_000).description(
+    'Timeout for live-Editor tools (unity_status, unity_command, unity_eval), in milliseconds.').volatile(),
+  cliTimeoutMs: Schema.number().min(1).default(600_000).description(
+    'Timeout for unity_cli (installs, tests, and builds run long), in milliseconds.').volatile(),
   graceMs: Schema.number().default(5_000),
-  outputMaxBytes: Schema.number().min(1).default(512_000),
+  outputMaxBytes: Schema.number().min(1).default(512_000).description(
+    'In-memory cap per collected CLI output stream, in bytes.').volatile(),
   env: Schema.dict(Schema.string()).default({}),
   warmShell: Schema.boolean().default(true),
   shellIdleMs: Schema.number().default(300_000),
@@ -58,6 +68,11 @@ export const Config: Schema<Config> = Schema.object({
  */
 export function apply(ctx: Context, config: Config): void {
   registerUnityTools(ctx, config)
+  // This package ships its own settings page, so Settings clients that build
+  // pages from the schema skip this entry.
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber), 'unity settings page policy')
+  })
   ctx.inject(['skills'], (skillsCtx) => {
     registerUnitySkills(skillsCtx, config)
   })

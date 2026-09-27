@@ -20,7 +20,7 @@ It talks to the Editor through Unity's official [`unity` command-line tool](http
 
 Before installing, make sure you have:
 
-1. **DeepSeek Harness 0.1.2-alpha.5 or newer.** Older versions are not supported.
+1. **DeepSeek Harness 0.1.7 or newer.** Older versions are not supported.
 2. **The `unity` command-line tool**, installed, signed in, and with an activated license. Check with:
 
    ```sh
@@ -109,7 +109,7 @@ The Asset Store feature works on Windows and macOS and needs Python 3.9 or newer
 
 Most people never need to change anything. If you do:
 
-**In the web GUI:** open **Settings → Plugins → Plugin configuration** and find the **Unity Plugin** card. There you can adjust the two timeouts and the output size cap. Changes apply immediately without a restart, and empty fields fall back to the defaults.
+**In the web GUI:** open **Plugins** in the sidebar and select **@opdsh/unity-plugin**. On its page you can adjust the two timeouts and the output size cap. Changes are saved to the profile's `cordis.patch.yml` and apply immediately without a restart; empty fields fall back to the defaults.
 
 **In the profile:** for everything else (default project path, the path to the `unity` binary, CI credentials), edit the profile's `cordis.patch.yml`. A patch replaces the plugin's whole `config` block, so include every key you want to keep:
 
@@ -200,7 +200,7 @@ pnpm dsh web --patch /abs/path/to/dev.cordis.yml
 - The four live-Editor tools (`unity_status`, `unity_list_commands`, `unity_command`, `unity_eval`) share a warm `unity shell --protocol ndjson` session per working directory, cutting per-call latency from roughly 600 ms of CLI start-up to single-digit milliseconds. Requests serialize per session; a timeout or cancellation mid-request kills the session and the next call respawns it; idle sessions are disposed after `shellIdleMs`. Set `warmShell: false` to fall back to one process per call. `unity_cli` always spawns per call because builds and tests run long and want raw streams.
 - Every invocation passes `--non-interactive`, so a command that needs interactive input fails loudly instead of hanging the agent.
 - The subprocess service scrubs credential-shaped environment variables from the child; CI service-account credentials must be passed explicitly via the `env` config field.
-- `commandTimeoutMs`, `cliTimeoutMs`, and `outputMaxBytes` must be greater than zero. The settings card refuses to save invalid values, and a stored invalid value leaves the namespace on its last good one.
+- `commandTimeoutMs`, `cliTimeoutMs`, and `outputMaxBytes` must be greater than zero. The settings form refuses to save invalid values, and the Loader keeps the running values when an edited config fails validation.
 - Live-Editor tools return the CLI's uniform JSON envelope (`{ success, command, data, errors, warnings }`) as structured output, so they compose with Code Mode.
 - Alternative integration: the CLI ships an MCP stdio server (`unity mcp`). Pointing `@deepseek-ai/dsh-mcp-client` at it works with zero code but forfeits render cards, config validation, and curated tool descriptions. This plugin exists to provide those.
 - How the upstream Unity skills are fetched and patched: [assets/UNITY-SKILLS-UPSTREAM.md](assets/UNITY-SKILLS-UPSTREAM.md).

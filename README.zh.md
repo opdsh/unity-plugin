@@ -20,7 +20,7 @@
 
 安装前请确认你已具备：
 
-1. **DeepSeek Harness 0.1.2-alpha.5 或更新版本。** 更早的版本不受支持。
+1. **DeepSeek Harness 0.1.7 或更新版本。** 更早的版本不受支持。
 2. **`unity` 命令行工具**，已安装、已登录且许可证已激活。可用以下命令检查：
 
    ```sh
@@ -109,7 +109,7 @@ Asset Store 功能支持 Windows 和 macOS，需要 Python 3.9 或更新版本�
 
 大多数人不需要改任何东西。如果确实需要：
 
-**在 Web 界面中：** 打开 **设置 → 插件 → 插件配置**，找到 **Unity Plugin** 卡片。在这里可以调整两个超时时间和输出大小上限。修改即时生效，无需重启；留空的字段沿用默认值。
+**在 Web 界面中：** 打开侧边栏的 **插件**，选择 **@opdsh/unity-plugin**。在它的页面上可以调整两个超时时间和输出大小上限。修改保存在 profile 的 `cordis.patch.yml` 中并即时生效，无需重启；留空的字段沿用默认值。
 
 **在 profile 中：** 其余配置（默认工程路径、`unity` 可执行文件路径、CI 凭据等）请编辑 profile 的 `cordis.patch.yml`。一个补丁会替换插件的整个 `config` 块，因此需要写全所有你想保留的键：
 
@@ -200,7 +200,7 @@ pnpm dsh web --patch /abs/path/to/dev.cordis.yml
 - 四个实时编辑器工具（`unity_status`、`unity_list_commands`、`unity_command`、`unity_eval`）按工作目录共享一个常驻的 `unity shell --protocol ndjson` 会话，把每次调用的延迟从约 600 毫秒的 CLI 启动降到个位数毫秒。同一会话内的请求串行执行；请求进行中发生超时或取消会杀死该会话，下次调用重新拉起；空闲会话在 `shellIdleMs` 后释放。设置 `warmShell: false` 可退回到每次调用一个进程。`unity_cli` 始终按调用启动进程，因为构建与测试耗时长，需要原始输出流。
 - 每次调用都带 `--non-interactive`，因此需要交互输入的命令会显式失败，而不会挂起 agent。
 - subprocess 服务会从子进程中清除形似凭据的环境变量；CI 的服务账号凭据必须通过 `env` 配置字段显式传入。
-- `commandTimeoutMs`、`cliTimeoutMs`、`outputMaxBytes` 必须大于 0。设置卡片会拒绝保存非法值；已存储的非法值会让该命名空间保留上一个有效值。
+- `commandTimeoutMs`、`cliTimeoutMs`、`outputMaxBytes` 必须大于 0。设置表单会拒绝保存非法值；编辑后的配置未通过校验时，Loader 会保留正在运行的值。
 - 实时编辑器工具以结构化输出返回 CLI 统一的 JSON 信封（`{ success, command, data, errors, warnings }`），因此能与 Code Mode 配合。
 - 另一种集成方式：CLI 自带一个 MCP stdio 服务（`unity mcp`）。把 `@deepseek-ai/dsh-mcp-client` 接到它上面无需写代码即可工作，但会失去渲染卡片、配置校验与精心编写的工具描述。本插件正是为提供这些而存在。
 - 上游 Unity 技能的拉取与补丁机制见 [assets/UNITY-SKILLS-UPSTREAM.md](assets/UNITY-SKILLS-UPSTREAM.md)。
