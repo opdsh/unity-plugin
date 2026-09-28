@@ -10,32 +10,46 @@
 import type { Context, Volatile } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
-// Type-only: the Loader's `loader/volatile-update` event merge.
-import type {} from '@deepseek-ai/cordis-plugin-loader'
+import type { ConfigWatch } from './live-config.ts'
 import { runUnity, runUnityJson } from './unity-cli.ts'
 import type { UnityJsonResult, UnityRunSpec } from './unity-cli.ts'
 import { UnityShellPool } from './unity-shell.ts'
 
-/** Deployment configuration consumed by the tool consumers. */
+/**
+ * Deployment configuration consumed by the tool consumers. Every field but
+ * `env` is volatile: the settings form on the Plugins page edits it live and
+ * the tools remount with the new values. `env` carries CI credentials, so it
+ * stays in cordis.patch.yml and never rides a settings response.
+ */
 export interface UnityToolsConfig {
   /** The `unity` executable — a PATH-resolved name or an absolute path. */
-  unityBin: string
+  unityBin: Volatile<string>
   /** Default Unity project path targeted by live-Editor tools; per-call `projectPath` overrides it. */
-  projectPath?: string
-  /** Cooperative timeout budget for live-Editor tools, in milliseconds; live-editable. */
+  projectPath: Volatile<string | undefined>
+  /** Cooperative timeout budget for live-Editor tools, in milliseconds. */
   commandTimeoutMs: Volatile<number>
-  /** Cooperative timeout budget for `unity_cli` (installs, tests, and builds run long), in milliseconds; live-editable. */
+  /** Cooperative timeout budget for `unity_cli` (installs, tests, and builds run long), in milliseconds. */
   cliTimeoutMs: Volatile<number>
   /** TERM-to-KILL escalation grace for the CLI process tree, in milliseconds. */
-  graceMs: number
-  /** In-memory cap per collected output stream, in bytes; live-editable. */
+  graceMs: Volatile<number>
+  /** In-memory cap per collected output stream, in bytes. */
   outputMaxBytes: Volatile<number>
   /** Explicit environment entries for the CLI (e.g. `UNITY_SERVICE_ACCOUNT_ID`), merged after the subprocess credential scrub. */
   env: Record<string, string>
   /** Route the live-Editor tools through a warm `unity shell --protocol ndjson` session instead of one CLI process per call. */
-  warmShell: boolean
+  warmShell: Volatile<boolean>
   /** Idle milliseconds after which a warm shell session with no queued work is disposed. */
-  shellIdleMs: number
+  shellIdleMs: Volatile<number>
+}
+
+/** The Config keys the tools consume; a live edit to any of them remounts the tools. */
+const TOOL_CONFIG_KEYS = [
+  'unityBin', 'projectPath', 'commandTimeoutMs', 'cliTimeoutMs', 'graceMs', 'outputMaxBytes', 'warmShell', 'shellIdleMs',
+] as const
+
+/** One mount's configuration: every volatile field read once. */
+type UnityToolsSettings = {
+  [K in keyof UnityToolsConfig]: UnityToolsConfig[K] extends Volatile<infer T> ? T : UnityToolsConfig[K]
 }
 
 /** Shared output declaration of the envelope-returning tools. */
@@ -84,32 +98,32 @@ const PROJECT_PATH_PARAMETER = {
   description: 'Absolute path of the Unity project whose Editor to target; omit to use the plugin\'s configured default (or the only running Editor).',
 } as const
 
-/** The live-editable tunables, read once per mount. */
-interface UnityTunables {
-  commandTimeoutMs: number
-  cliTimeoutMs: number
-  outputMaxBytes: number
-}
-
 /**
  * Register the five `unity_*` tools on `ctx.tools`, remounting them whenever
- * the Loader commits a live edit to the volatile tunables (timeouts and the
- * output cap), as the settings card on the Plugins page writes them. A
- * remount also disposes the warm shell pool, so in-flight warm requests
- * reject and sessions respawn with the new caps. The Config schema refuses
- * non-positive values, and the Loader keeps the running values when a
- * candidate fails it, so every mount sees values `defineTool` accepts.
+ * the Loader commits a live edit to a field they consume, as the settings
+ * form on the Plugins page writes them. A remount also disposes the warm
+ * shell pool, so in-flight warm requests reject and sessions respawn with the
+ * new values. The Config schema refuses non-positive timeouts and caps, and
+ * the Loader keeps the running values when a candidate fails it, so every
+ * mount sees values `defineTool` accepts.
  * @param ctx - registrant context carrying the tool registry and subprocess service.
  * @param config - the deployment's Unity CLI configuration.
+ * @param watch - live-edit subscriptions on the plugin entry.
  */
-export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void {
+export function registerUnityTools(ctx: Context, config: UnityToolsConfig, watch: ConfigWatch): void {
   let dispose: (() => void) | undefined
   const mount = (): void => {
     dispose?.()
-    dispose = mountUnityTools(ctx, config, {
+    dispose = mountUnityTools(ctx, {
+      unityBin: config.unityBin.get(),
+      projectPath: config.projectPath.get(),
       commandTimeoutMs: config.commandTimeoutMs.get(),
       cliTimeoutMs: config.cliTimeoutMs.get(),
+      graceMs: config.graceMs.get(),
       outputMaxBytes: config.outputMaxBytes.get(),
+      env: config.env,
+      warmShell: config.warmShell.get(),
+      shellIdleMs: config.shellIdleMs.get(),
     })
   }
   ctx.effect(() => () => {
@@ -117,46 +131,45 @@ export function registerUnityTools(ctx: Context, config: UnityToolsConfig): void
     dispose = undefined
   }, 'unity tools')
   mount()
-  ctx.on('loader/volatile-update', mount)
+  ctx.effect(() => watch(TOOL_CONFIG_KEYS, mount), 'unity tools: live config')
 }
 
 /**
- * Register the tools and warm pool for one resolved tunable set.
+ * Register the tools and warm pool for one resolved configuration.
  * @param ctx - registrant context carrying the tool registry and subprocess service.
- * @param config - the deployment's Unity CLI configuration (non-tunable fields).
- * @param tunables - the currently authoritative user-editable values.
+ * @param settings - the configuration this mount runs with.
  * @returns the disposer unregistering the five tools and disposing the pool.
  */
-function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: UnityTunables): () => void {
+function mountUnityTools(ctx: Context, settings: UnityToolsSettings): () => void {
   const disposers: (() => void)[] = []
   /** The calling agent's session cwd, else the harness process cwd. */
   const cwdOf = (exec: ToolRunContext): string => exec.agent?.session.header.cwd ?? process.cwd()
 
   /** `--project-path` flags for the effective target project, empty when none is known. */
   const projectFlags = (override: string | undefined): string[] => {
-    const path = override ?? config.projectPath
+    const path = override ?? settings.projectPath
     return path === undefined ? [] : ['--project-path', path]
   }
 
   /** One fully-resolved spec for a JSON-envelope invocation. */
   const jsonSpec = (exec: ToolRunContext, args: readonly string[]): UnityRunSpec => ({
-    bin: config.unityBin,
+    bin: settings.unityBin,
     args: [...args, '--format', 'json', '--non-interactive'],
     cwd: cwdOf(exec),
-    env: config.env,
-    graceMs: config.graceMs,
-    outputMaxBytes: tunables.outputMaxBytes,
+    env: settings.env,
+    graceMs: settings.graceMs,
+    outputMaxBytes: settings.outputMaxBytes,
     signal: exec.signal,
   })
 
   /** Warm-session pool behind the live-Editor tools; absent when `warmShell` is off. */
-  const pool = config.warmShell
+  const pool = settings.warmShell
     ? new UnityShellPool(ctx, {
-        bin: config.unityBin,
-        env: config.env,
-        graceMs: config.graceMs,
-        outputMaxBytes: tunables.outputMaxBytes,
-        idleMs: config.shellIdleMs,
+        bin: settings.unityBin,
+        env: settings.env,
+        graceMs: settings.graceMs,
+        outputMaxBytes: settings.outputMaxBytes,
+        idleMs: settings.shellIdleMs,
       })
     : undefined
   if (pool !== undefined) {
@@ -183,7 +196,7 @@ function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: Unity
       schema: ENVELOPE_OUTPUT_SCHEMA,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value.envelope, null, 2) }],
     },
-    timeoutMs: tunables.commandTimeoutMs,
+    timeoutMs: settings.commandTimeoutMs,
     isConcurrencySafe: () => true,
     async execute(_args, exec) {
       return await runJson(exec, ['status'])
@@ -202,7 +215,7 @@ function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: Unity
       schema: ENVELOPE_OUTPUT_SCHEMA,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value.envelope, null, 2) }],
     },
-    timeoutMs: tunables.commandTimeoutMs,
+    timeoutMs: settings.commandTimeoutMs,
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       return await runJson(exec, ['command', ...projectFlags(args.projectPath)])
@@ -231,7 +244,7 @@ function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: Unity
       schema: ENVELOPE_OUTPUT_SCHEMA,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value.envelope, null, 2) }],
     },
-    timeoutMs: tunables.commandTimeoutMs,
+    timeoutMs: settings.commandTimeoutMs,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       return await runJson(exec, ['command', args.command, ...(args.args ?? []), ...projectFlags(args.projectPath)])
@@ -254,7 +267,7 @@ function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: Unity
       schema: ENVELOPE_OUTPUT_SCHEMA,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value.envelope, null, 2) }],
     },
-    timeoutMs: tunables.commandTimeoutMs,
+    timeoutMs: settings.commandTimeoutMs,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       return await runJson(exec, ['command', 'eval', args.code, ...projectFlags(args.projectPath)])
@@ -291,17 +304,17 @@ function mountUnityTools(ctx: Context, config: UnityToolsConfig, tunables: Unity
         return [{ type: 'text', text: parts.join('\n') }]
       },
     },
-    timeoutMs: tunables.cliTimeoutMs,
+    timeoutMs: settings.cliTimeoutMs,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
       const argv = args.args.includes('--non-interactive') ? args.args : [...args.args, '--non-interactive']
       return await runUnity(ctx, {
-        bin: config.unityBin,
+        bin: settings.unityBin,
         args: argv,
         cwd: cwdOf(exec),
-        env: config.env,
-        graceMs: config.graceMs,
-        outputMaxBytes: tunables.outputMaxBytes,
+        env: settings.env,
+        graceMs: settings.graceMs,
+        outputMaxBytes: settings.outputMaxBytes,
         signal: exec.signal,
       })
     },

@@ -2,13 +2,13 @@
  * Staged form over the `unity` profile entry's live fields, built on the
  * shared settings form model: a field shows its effective value and whether
  * the profile overrides it, an empty draft clears the field back to the value
- * it inherits, and a draft that is not a positive finite number blocks the
+ * it inherits, and a draft the Host's Config schema would refuse blocks the
  * save instead of being dropped.
  * @module unity-plugin/client/controller
  */
 
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SettingsFormModel, settingsTextField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   SettingsFieldSpec, SettingsFieldState, SettingsFormActions, SettingsFormScope, SettingsFormShell,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -21,19 +21,80 @@ export const UNITY_NS = 'unity'
 
 /** The live-editable fields, as served by the `unity` entry's form. */
 export interface UnityTunablesSection {
-  /** Timeout for live-Editor tools, in milliseconds. */
+  unityBin?: string
+  projectPath?: string
   commandTimeoutMs?: number
-  /** Timeout for `unity_cli`, in milliseconds. */
   cliTimeoutMs?: number
-  /** In-memory cap per collected output stream, in bytes. */
+  graceMs?: number
   outputMaxBytes?: number
+  warmShell?: boolean
+  shellIdleMs?: number
+  unitySkillsDownload?: boolean
+  unitySkillsRepo?: string
+  unitySkillsRef?: string
+  unitySkillsCacheDir?: string
 }
 
-/** The three fields this card edits. */
-export type UnityFieldName = 'commandTimeoutMs' | 'cliTimeoutMs' | 'outputMaxBytes'
+/** The fields this card edits. */
+export type UnityFieldName = keyof UnityTunablesSection
 
-/** Field names in render order. */
-export const UNITY_FIELDS: readonly UnityFieldName[] = ['commandTimeoutMs', 'cliTimeoutMs', 'outputMaxBytes']
+/** Longest delay a Node timer honours; the Host's schema refuses anything larger. */
+const MAX_TIMER_MS = 2_147_483_647
+
+/**
+ * A number field bounded like its Host schema. An empty draft clears the
+ * field; anything outside the bounds blocks the save here, so the card says
+ * so inline instead of the Host refusing the write.
+ * @param field - field name inside the entry's form.
+ * @param min - smallest accepted value.
+ * @param max - largest accepted value.
+ * @returns the field's conversion spec.
+ */
+function boundedNumberField(field: UnityFieldName, min: number, max = Number.MAX_SAFE_INTEGER): SettingsFieldSpec {
+  return {
+    field,
+    format: value => typeof value === 'number' ? String(value) : '',
+    parse: (text) => {
+      const trimmed = text.trim()
+      if (trimmed === '') return { kind: 'clear' }
+      const parsed = Number(trimmed)
+      return Number.isFinite(parsed) && parsed >= min && parsed <= max ? { kind: 'set', value: parsed } : undefined
+    },
+  }
+}
+
+/**
+ * An on/off field, staged as the text `true` or `false`; the card renders it
+ * as a switch.
+ * @param field - field name inside the entry's form.
+ * @returns the field's conversion spec.
+ */
+function booleanField(field: UnityFieldName): SettingsFieldSpec {
+  return {
+    field,
+    format: value => typeof value === 'boolean' ? String(value) : '',
+    parse: (text) => {
+      if (text === '') return { kind: 'clear' }
+      return text === 'true' || text === 'false' ? { kind: 'set', value: text === 'true' } : undefined
+    },
+  }
+}
+
+/** Every field's spec, in render order. */
+const FIELD_SPECS: readonly SettingsFieldSpec[] = [
+  settingsTextField('unityBin'),
+  settingsTextField('projectPath'),
+  boundedNumberField('commandTimeoutMs', 1, MAX_TIMER_MS),
+  boundedNumberField('cliTimeoutMs', 1, MAX_TIMER_MS),
+  boundedNumberField('graceMs', 0, MAX_TIMER_MS),
+  boundedNumberField('outputMaxBytes', 1),
+  booleanField('warmShell'),
+  boundedNumberField('shellIdleMs', 1, MAX_TIMER_MS),
+  booleanField('unitySkillsDownload'),
+  settingsTextField('unitySkillsRepo'),
+  settingsTextField('unitySkillsRef'),
+  settingsTextField('unitySkillsCacheDir'),
+]
 
 /** What the Unity card renders. */
 export interface UnityCardState extends SettingsFormShell {
@@ -49,27 +110,6 @@ export interface UnityCardFace extends SettingsFormActions {
   }
 }
 
-/**
- * A positive number field. An empty draft clears the field; zero, negatives,
- * and non-numbers block the save here so the card says so inline, matching the
- * `min(1)` the Host's Config schema would reject the write with anyway — all
- * three fields are durations and byte caps that only mean anything above zero.
- * @param field - field name inside the entry's form.
- * @returns the field's conversion spec.
- */
-function positiveNumberField(field: UnityFieldName): SettingsFieldSpec {
-  return {
-    field,
-    format: value => typeof value === 'number' ? String(value) : '',
-    parse: (text) => {
-      const trimmed = text.trim()
-      if (trimmed === '') return { kind: 'clear' }
-      const parsed = Number(trimmed)
-      return Number.isFinite(parsed) && parsed > 0 ? { kind: 'set', value: parsed } : undefined
-    },
-  }
-}
-
 /** Bridges the `unity` entry's shared configuration form onto the card's staged form. */
 export class UnityCardController {
   private readonly form: SettingsFormModel<UnityTunablesSection>
@@ -77,13 +117,13 @@ export class UnityCardController {
 
   /** @param scope - the shared configuration form of the `unity` profile entry. */
   constructor(scope: SettingsFormScope<UnityTunablesSection>) {
-    this.form = new SettingsFormModel(scope, UNITY_FIELDS.map(positiveNumberField))
+    this.form = new SettingsFormModel(scope, [...FIELD_SPECS])
     this.store = this.form.bind(() => this.projection())
   }
 
   private projection(): UnityCardState {
     const fields = {} as Record<UnityFieldName, SettingsFieldState>
-    for (const field of UNITY_FIELDS) fields[field] = this.form.field(field)
+    for (const spec of FIELD_SPECS) fields[spec.field as UnityFieldName] = this.form.field(spec.field)
     return { ...this.form.shell(), fields }
   }
 

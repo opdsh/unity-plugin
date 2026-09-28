@@ -109,9 +109,9 @@ The Asset Store feature works on Windows and macOS and needs Python 3.9 or newer
 
 Most people never need to change anything. If you do:
 
-**In the web GUI:** open **Plugins** in the sidebar and select **@opdsh/unity-plugin**. On its page you can adjust the two timeouts and the output size cap. Changes are saved to the profile's `cordis.patch.yml` and apply immediately without a restart; empty fields fall back to the defaults.
+**In the web GUI:** open **Plugins** in the sidebar and select **@opdsh/unity-plugin**. Its page has every setting: the `unity` executable and default project path, the timeouts and output cap, the warm shell, and the Unity skill collection (on/off, repository, ref, cache directory). Changes are saved to the profile's `cordis.patch.yml` and apply immediately without a restart; empty fields fall back to the defaults.
 
-**In the profile:** for everything else (default project path, the path to the `unity` binary, CI credentials), edit the profile's `cordis.patch.yml`. A patch replaces the plugin's whole `config` block, so include every key you want to keep:
+**In the profile:** CI credentials (`env`) are only set here, so they never reach the browser; every other setting can be set here too. Edit the profile's `cordis.patch.yml`. A patch replaces the plugin's whole `config` block, so include every key you want to keep:
 
 ```yaml
 - insert:
@@ -127,7 +127,8 @@ Most people never need to change anything. If you do:
         env: {}                            # e.g. UNITY_SERVICE_ACCOUNT_ID / SECRET for CI
         warmShell: true                    # keep one `unity shell` alive for fast Editor commands
         shellIdleMs: 300000                # close the idle shell after this long
-        unitySkillsRepo: https://github.com/Unity-Technologies/skills  # '' disables the download
+        unitySkillsDownload: true          # false skips Unity's skill collection
+        unitySkillsRepo: https://github.com/Unity-Technologies/skills  # '' also disables the download
         unitySkillsRef: 87fac23d66a1f44f5e06c2935eccce0b40b9715a       # or a branch such as main
 ```
 
@@ -200,7 +201,7 @@ pnpm dsh web --patch /abs/path/to/dev.cordis.yml
 - The four live-Editor tools (`unity_status`, `unity_list_commands`, `unity_command`, `unity_eval`) share a warm `unity shell --protocol ndjson` session per working directory, cutting per-call latency from roughly 600 ms of CLI start-up to single-digit milliseconds. Requests serialize per session; a timeout or cancellation mid-request kills the session and the next call respawns it; idle sessions are disposed after `shellIdleMs`. Set `warmShell: false` to fall back to one process per call. `unity_cli` always spawns per call because builds and tests run long and want raw streams.
 - Every invocation passes `--non-interactive`, so a command that needs interactive input fails loudly instead of hanging the agent.
 - The subprocess service scrubs credential-shaped environment variables from the child; CI service-account credentials must be passed explicitly via the `env` config field.
-- `commandTimeoutMs`, `cliTimeoutMs`, and `outputMaxBytes` must be greater than zero. The settings form refuses to save invalid values, and the Loader keeps the running values when an edited config fails validation.
+- `commandTimeoutMs`, `cliTimeoutMs`, `shellIdleMs`, and `outputMaxBytes` must be greater than zero, `graceMs` at least zero, and every duration at most 2147483647 ms (the longest delay a Node timer honours). The settings form refuses to save invalid values, and the Loader keeps the running values when an edited config fails validation.
 - Live-Editor tools return the CLI's uniform JSON envelope (`{ success, command, data, errors, warnings }`) as structured output, so they compose with Code Mode.
 - Alternative integration: the CLI ships an MCP stdio server (`unity mcp`). Pointing `@deepseek-ai/dsh-mcp-client` at it works with zero code but forfeits render cards, config validation, and curated tool descriptions. This plugin exists to provide those.
 - How the upstream Unity skills are fetched and patched: [assets/UNITY-SKILLS-UPSTREAM.md](assets/UNITY-SKILLS-UPSTREAM.md).
